@@ -1,0 +1,6 @@
+data/
+rosm.cache/
+*.Rproj.user
+*.RData
+*.Rhistory
+.Rproj.user

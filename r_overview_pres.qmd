@@ -1,0 +1,316 @@
+---
+title: "R for Spatial Analysis: An Overview"
+author: "Tom Cunningham"
+date: 2023-12-01
+date-format: "D MMM, YYYY"
+format: 
+  revealjs:
+    fig-align: center
+---
+
+## What is R?
+
+::: columns
+::: {.column width="65%"}
+:::{.incremental}
+* R is a programming language used by over 2 million people:
+
+  + Focused on data analysis and statistics.
+  + Used through the **RStudio** environment, which provides a helpful user interface.
+  + Completely free and open source.
+
+* R and RStudio can be downloaded from: <https://cran.r-project.org/>
+:::
+:::
+
+::: {.column width="35%"}
+![](https://www.r-project.org/logo/Rlogo.png){width="80%"}
+
+<br/>
+
+![](https://www.rstudio.com/wp-content/uploads/2018/10/RStudio-Logo-Flat.png)
+:::
+:::
+
+
+
+
+## How do you use R?
+::: {style="font-size: 125%;"}
+::: {.incremental}
+* R is used programmatically, through typing commands and functions rather than clicking. 
+<br/>
+
+* This means the main file is a list of instructions called a script, rather than a project file in ArcGIS.
+<br/>
+
+* Within a script, you can read in data, make changes and create plots/maps. But the scripts themselves are the most important thing.
+:::
+:::
+
+## An RStudio window
+
+![](pics/rstudio_screenshot.png)
+
+## Example of quick analysis in R
+
+![](pics/boxPlots.png)
+
+## Example of a spatial analysis in R
+
+![](pics/moran_i_example.png)
+
+## Typical R workflow
+::: {.incremental}
+1. Load required packages.
+
+2. Import data (including shapefiles).
+
+3. Pre-process data (clean, create new variables etc.).
+
+4. Conduct analysis and modelling.
+
+5. Create outputs, like maps and plots.
+:::
+
+. . .
+
+So, let's give it a go.
+
+# Making a map of economic inactivity in Manchester with R
+
+## Step 1: Load packages
+```{r}
+#| echo: true
+library(dplyr)
+library(sf) 
+library(ggplot2)
+```
+
+::: {.incremental}
+* Packages are useful add-ons to R that help with specific tasks. Here we load 3 packages:
+
+  + `dplyr`: a package commonly used to aid data manipulation
+
+  + `sf`: the main package for working with spatial data in R
+
+  + `ggplot2`: a package to create nice looking plots (and maps)
+:::
+
+## Step 2: Import data
+
+```{r}
+#| echo: true
+#| message: false
+#| output: false
+lsoa21_sf <- st_read("data/Lower_layer_Super_Output_Areas_2021_EW_BFC_V8_8154990398368723939/LSOA_2021_EW_BFC_V8.shp")
+
+
+emp21 <- read.csv("data/2021lsoa_econ_act_manchester.csv",
+                  skip = 9)
+```
+
+::: {style="font-size: 75%;"}
+::: {.incremental}
+* The next stage is to import the data you'll be using. Data should be saved in the same directory as the one you are working in with R.
+
+* Here we import two files:
+
+  + a shapefile of all 2021 UK LSOA boundaries (using the `st_read` function)
+
+  + a CSV of economic activity 2021 Census data for LSOAs in Manchester LA (using the `read.csv` function)
+:::
+:::
+
+
+## Step 3: Join data and shapefile
+
+```{r}
+#| echo: true
+emp21_sf <- inner_join(lsoa21_sf,                       
+                       emp21, 
+                       by = c("LSOA21CD" = "mnemonic"))
+```
+
+::: {.incremental}
+* Like other GIS software, data needs to be joined to the shapefile using an ID column. We can do this in R using the `inner_join` function. 
+
+* Here we create a new object called `emp21_sf` - this is just a name I've chosen. The arrow symbol (`<-`) gives an object a name.
+:::
+
+
+## Step 4: Create new variable for inactivity rate
+
+```{r}
+#| echo: true
+emp21_rate <- mutate(emp21_sf, 
+                     ec_inact_perc = Economically.inactive..excluding.full.time.students./Total * 100)
+```
+
+::: {.incremental}
+* We now need to calculate the economically inactive variable as a proportion of the total LSOA population. New variables like this can be created using the `mutate` function.
+
+* Any changes you make to data in R do not affect the original data - so you don't need to worry too much about making mistakes!
+:::
+
+## Step 5: Create a map
+
+
+
+```{r}
+#| echo: true
+#| output: false
+ggplot(emp21_rate, aes(fill = ec_inact_perc)) +
+  geom_sf()
+```
+
+::: {.incremental}
+* Now we can plot the variable on a map. 
+
+* There are a few ways to do this, but we use `ggplot`, one of the most common plotting functions in R. 
+
+:::
+
+## The final map
+
+```{r}
+#| echo: true
+#| output-location: fragment
+ggplot(emp21_rate, aes(fill = ec_inact_perc)) +
+  geom_sf()
+```
+
+## The RStudio window now
+
+![](pics/rstudio_screenshot_after_coding.png)
+
+
+## We can also make the map better...
+
+```{r}
+#| echo: false
+#| message: false
+#| warning: false
+
+ints <- classInt::classIntervals(emp21_rate$ec_inact_perc, 6, style = "jenks")
+
+emp21_rate_jenks <- mutate(emp21_rate,
+                           ec_inact_jenks = cut(ec_inact_perc, 
+                                                breaks = ints$brks, 
+                                                include.lowest = T))
+         
+ggplot(emp21_rate_jenks, 
+       aes(fill = ec_inact_jenks)) +
+  ggspatial::annotation_map_tile(zoomin=1) +
+  geom_sf(alpha = 0.8) +
+  ggspatial::annotation_north_arrow(height = unit(2, "cm"),
+                                    width = unit(1, "cm"),
+                                    location = "tl",
+                                    style = ggspatial::north_arrow_orienteering(
+                                      fill = c("black","white"))) +
+  ggspatial::annotation_scale() +
+  scale_fill_brewer(palette = "YlOrRd", direction = 1) +
+  theme(panel.grid.major = element_blank(),
+        panel.grid.minor = element_blank(),
+        axis.title = element_blank(),
+        axis.text = element_blank(),
+        axis.ticks = element_blank()) +
+  labs(fill = "% popoulation\neconomically inactive")
+```
+
+## ... or even interactive!
+
+```{r}
+library(leaflet)
+
+emp21_rate_jenks_proj <- st_transform(emp21_rate_jenks, 4326)
+
+pal <- colorBin("YlOrRd", bins = ints$brks)
+
+leaflet(emp21_rate_jenks_proj) %>% 
+  addTiles() %>% 
+  addPolygons(fillColor = ~pal(ec_inact_perc),
+              fillOpacity = 0.7,
+              stroke = TRUE, 
+              weight = 0.5, 
+              color = "black",
+              highlightOptions = highlightOptions(opacity = 1, 
+                                                  fillOpacity = 1),
+              label = ~floor(ec_inact_perc)) %>%
+  addLegend("bottomright", 
+            colors = RColorBrewer::brewer.pal(6, "YlOrRd"), 
+            labels = levels(emp21_rate_jenks$ec_inact_jenks),
+            title =  '% population economically inactive')
+```
+
+# So, why use R as a GIS?
+
+## <span style="color:green;">Benefits</span> of R over Arc/QGIS
+
+::: {style="font-size: 125%;"}
+::: {.incremental}
+* **Reproducible:** typing out commands means that there is a record of your work.
+  + Useful for you to look back on.
+  + Useful for others to know what you've done.
+  + Doesn't affect raw data.
+
+* **Scalable:** R is better at dealing with large amounts of data.
+:::
+:::
+
+## <span style="color:green;">Benefits</span> of R over Arc/QGIS
+::: {style="font-size: 125%;"}
+::: {.incremental}
+* **More features:** There are >20,000 packages currently available on CRAN.
+
+* **It's free! ** R is completely free and open source.
+
+* **Can combine with other analysis:** Easy to conduct non-spatial analysis on imported data.
+:::
+:::
+
+
+## <span style="color:red;">Drawbacks</span> of R over Arc/QGIS
+::: {style="font-size: 125%;"}
+::: {.incremental}
+* **Not as quick for simple mapping:** For making quick and good-looking maps, R isn't always the best.
+
+* **Less immediate:** There is a level of abstraction from the data you are using.
+
+* **You need to know R:** An initial learning curve that gets easier the more you use it.
+:::
+:::
+
+## If you want to know more...
+
+::: columns
+::: {.column width="33%"}
+![](https://r.geocompx.org/images/cover.png){width="90%"}
+
+:::
+::: {.column width="33%"}
+![](https://d33wubrfki0l68.cloudfront.net/b88ef926a004b0fce72b2526b0b5c4413666a4cb/24a30/cover.png){width="90%"}
+:::
+
+
+::: {.column width="33%"}
+:::{.incremental}
+* Both of these books are free online:
+  + [Geocomputation with R](https://r.geocompx.org/)
+  + [R for Data Science](https://r4ds.had.co.nz/)
+:::
+:::
+:::
+
+. . .
+
+These slides (made with Quarto in RStudio!) can be found on my Github: <https://github.com/tmcunningham>
+
+
+```{css}
+code.sourceCode {
+  font-size: 1.3em;
+}
+```
+
+
