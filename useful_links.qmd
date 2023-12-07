@@ -1,0 +1,37 @@
+---
+title: "Useful R links"
+author: "Tom Cunningham"
+format: pdf
+---
+
+## Downloading R and RStudio
+
+The first stage of working with R is to download and install R and RStudio.
+
+* You can install R here: <https://cran.rstudio.com/>
+
+* You can install RStudio here: <https://posit.co/download/rstudio-desktop/>
+
+To get more help downloading and installing R and RStudio, you can watch these videos:
+
+* [for Windows](https://www.youtube.com/watch?v=eD07NznguA4)
+
+* [for Mac](https://www.youtube.com/watch?v=AEebOXiMyyI)
+
+
+## Running Code
+
+When you click the **Render** button a document will be generated that includes both content and the output of embedded code. You can embed code like this:
+
+```{r}
+1 + 1
+```
+
+You can add options to executable code like this 
+
+```{r}
+#| echo: false
+2 * 2
+```
+
+The `echo: false` option disables the printing of code (only output is displayed).
